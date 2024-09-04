@@ -22,6 +22,9 @@ class AZIP:
     args = argparse.ArgumentParser()
 
     def arg_builder(self):
+        """
+        Builds the arguments
+        """
         self.args.add_argument("--output", help="Output format: table or json")
         self.args.add_argument(
             "--ip",
@@ -50,6 +53,12 @@ class AZIP:
         self.args = self.args.parse_args()
 
     def inet_getter(self) -> list[azure.mgmt.network.models.NetworkInterface]:
+        """
+        Gets all network interfaces and network interfaces attached to scale sets
+
+        Returns:
+            list[azure.mgmt.network.models.NetworkInterface]: List of network interfaces
+        """
         self.credential = DefaultAzureCredential()
         self.subscription_id = os.environ["AZURE_SUBSCRIPTION_ID"]
         self.network_client = NetworkManagementClient(
@@ -76,7 +85,19 @@ class AZIP:
                 continue
         return all_network_interfaces
 
-    def regex_filter(self, table: list) -> list:
+    def regex_filter(self, table: list[list[str]]) -> list[list[str]]:
+        """
+        Filters the table based on the regex filters
+
+        Args:
+            table (list[list[str]]): Table to filter
+
+        Returns:
+            list[list[str]]: Filtered table or the original table if no filters are specified
+
+        Raises:
+            Exception: If no interfaces are found with the specified filters
+        """
         ip_regex = re.compile(self.args.ip) if self.args.ip else None
         name_regex = re.compile(self.args.name) if self.args.name else None
         rg_regex = re.compile(self.args.rg) if self.args.rg else None
@@ -113,8 +134,17 @@ class AZIP:
         return filtered_table
 
     def table_builder(
-        self, inet_list: azure.mgmt.network.models.NetworkInterface
-    ) -> list:
+        self, inet_list: list[azure.mgmt.network.models.NetworkInterface]
+    ) -> list[list[str]]:
+        """
+        Builds the table
+
+        Args:
+            inet_list (list[azure.mgmt.network.models.NetworkInterface]): List of network interfaces
+
+        Returns:
+            list[list[str]]: Table
+        """
         table = []
         for inet in inet_list:
             attached_resource = (
@@ -142,7 +172,10 @@ class AZIP:
             )
         return table
 
-    def output(self, table: list, headers: list):
+    def output(self, table: list[list[str]]):
+        """
+        Outputs the table in the specified format (json or table)
+        """
         if self.args.output == "json":
             json_table = []
             for row in table:
@@ -158,7 +191,7 @@ class AZIP:
                 )
             print(json.dumps(json_table, indent=4))
         else:
-            print(tabulate(table, headers=headers))
+            print(tabulate(table, headers=self.headers))
 
 
 if __name__ == "__main__":
@@ -167,4 +200,4 @@ if __name__ == "__main__":
     inet_list = azip.inet_getter()
     table = azip.table_builder(inet_list)
     table = azip.regex_filter(table)
-    azip.output(table, azip.headers)
+    azip.output(table)
